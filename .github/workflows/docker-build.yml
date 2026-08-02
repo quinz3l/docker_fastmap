@@ -1,0 +1,105 @@
+# Save this file as: .github/workflows/docker-build.yml
+#
+# Builds and pushes the FastMap image to ghcr.io. Mirrors the splat-pipeline
+# workflow: disk cleanup, lowercase tag handling, GHA layer caching.
+
+name: Build and push FastMap image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dockerfile"
+      - ".github/workflows/docker-build.yml"
+  workflow_dispatch:
+    inputs:
+      cuda_version:
+        description: "CUDA base image version"
+        default: "12.4.1"
+        required: false
+      torch_version:
+        description: "PyTorch version"
+        default: "2.4.1"
+        required: false
+      torch_cuda_tag:
+        description: "PyTorch CUDA tag (must match cuda_version family)"
+        default: "cu124"
+        required: false
+      cuda_architectures:
+        description: "CMAKE_CUDA_ARCHITECTURES list"
+        default: "89"
+        required: false
+      install_colmap:
+        description: "Build COLMAP (needed unless you already have match .db files)"
+        default: "true"
+        required: false
+      build_cuda_kernels:
+        description: "Compile FastMap's optional custom CUDA kernels"
+        default: "true"
+        required: false
+      image_tag:
+        description: "Tag for the built image"
+        default: "cu124"
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute lowercase image name
+        run: echo "IMAGE_NAME_LC=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}-fastmap:${{ inputs.image_tag || 'cu124' }}
+          build-args: |
+            CUDA_VERSION=${{ inputs.cuda_version || '12.4.1' }}
+            TORCH_VERSION=${{ inputs.torch_version || '2.4.1' }}
+            TORCH_CUDA_TAG=${{ inputs.torch_cuda_tag || 'cu124' }}
+            CUDA_ARCHITECTURES=${{ inputs.cuda_architectures || '89' }}
+            INSTALL_COLMAP=${{ inputs.install_colmap || 'true' }}
+            BUILD_CUDA_KERNELS=${{ inputs.build_cuda_kernels || 'true' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      - name: Image summary
+        run: |
+          echo "Pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}-fastmap:${{ inputs.image_tag || 'cu124' }}" >> $GITHUB_STEP_SUMMARY
