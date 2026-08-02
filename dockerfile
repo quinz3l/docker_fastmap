@@ -33,7 +33,6 @@ ARG TORCH_VERSION=2.4.1
 ARG OIIO_VERSION=v2.5.9.0
 ARG COLMAP_GIT_REF=main
 ARG FASTMAP_GIT_REF=main
-ARG PYRENDER_GIT_REF=main
 ARG INSTALL_COLMAP=true
 ARG BUILD_CUDA_KERNELS=true
 
@@ -49,7 +48,6 @@ ARG TORCH_VERSION
 ARG OIIO_VERSION
 ARG COLMAP_GIT_REF
 ARG FASTMAP_GIT_REF
-ARG PYRENDER_GIT_REF
 ARG INSTALL_COLMAP
 ARG BUILD_CUDA_KERNELS
 
@@ -117,7 +115,7 @@ RUN /opt/venv/bin/pip install --no-cache-dir \
     trimesh "pyglet<2" pyyaml dacite loguru prettytable psutil
 
 RUN /opt/venv/bin/pip install --no-cache-dir \
-    "git+https://github.com/jiahaoli95/pyrender.git@${PYRENDER_GIT_REF}"
+    "git+https://github.com/jiahaoli95/pyrender.git"
 
 RUN git clone --depth 1 --branch ${FASTMAP_GIT_REF} https://github.com/pals-ttic/fastmap.git /opt/fastmap
 
