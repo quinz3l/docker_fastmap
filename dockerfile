@@ -163,9 +163,9 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir git+https://github.com/pals-ttic/fastmap.git
 
 # ------------------------------------------------------------------------------
-# NEW: Install JupyterLab for RunPod
+# NEW: Install fastmap from GitHub
 # ------------------------------------------------------------------------------
-RUN pip install --no-cache-dir jupyterlab
+RUN pip install --no-cache-dir --no-build-isolation git+https://github.com/pals-ttic/fastmap.git
 
 # ------------------------------------------------------------------------------
 # NEW: Create a startup script for JupyterLab (RunPod friendly)
