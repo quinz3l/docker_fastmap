@@ -4,7 +4,7 @@
 # by default — no extra secrets needed, it uses the repo's built-in GITHUB_TOKEN.
 # To push to Docker Hub instead, see the commented block near the bottom.
 #
-# Triggers:
+# Triggers: #
 #   - Push to main that touches the Dockerfile
 #   - Manual run from the Actions tab, with overridable build args
 
