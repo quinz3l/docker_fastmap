@@ -110,11 +110,10 @@ RUN /opt/venv/bin/pip install --no-cache-dir \
     ${OPENCV_PKG} \
     ${TQDM_PKG} \
     jupyterlab \
+    pyrender \
     imageio imageio-ffmpeg scikit-image lpips rich tyro \
     trimesh "pyglet<2" pyyaml dacite loguru prettytable psutil
 
-RUN /opt/venv/bin/pip install --no-cache-dir \
-    "git+https://github.com/jiahaoli95/pyrender.git@${PYRENDER_GIT_REF}"
 
 # Optional tiny-cuda-nn
 RUN /opt/venv/bin/pip install --no-cache-dir \
