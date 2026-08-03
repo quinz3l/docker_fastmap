@@ -1,5 +1,5 @@
 # Save this file as: .github/workflows/docker-build.yml  (in the same repo as your Dockerfile)
-#-
+#
 # Builds and pushes the splat-pipeline image to GitHub Container Registry (ghcr.io)
 # by default — no extra secrets needed, it uses the repo's built-in GITHUB_TOKEN.
 # To push to Docker Hub instead, see the commented block near the bottom.
