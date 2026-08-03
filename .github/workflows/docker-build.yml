@@ -1,15 +1,20 @@
-# Save this file as: .github/workflows/docker-build.yml
+# Save this file as: .github/workflows/docker-build.yml  (in the same repo as your Dockerfile)
+#-
+# Builds and pushes the splat-pipeline image to GitHub Container Registry (ghcr.io)
+# by default — no extra secrets needed, it uses the repo's built-in GITHUB_TOKEN.
+# To push to Docker Hub instead, see the commented block near the bottom.
 #
-# Builds and pushes the FastMap image to ghcr.io. Mirrors the splat-pipeline
-# workflow: disk cleanup, lowercase tag handling, GHA layer caching.
+# Triggers:
+#   - Push to main that touches the Dockerfile
+#   - Manual run from the Actions tab, with overridable build args
 
-name: Build and push FastMap image
+name: Build and push splat-pipeline image
 
 on:
   push:
     branches: [main]
     paths:
-      - "dockerfile"
+      - "Dockerfile"
       - ".github/workflows/docker-build.yml"
   workflow_dispatch:
     inputs:
@@ -18,7 +23,7 @@ on:
         default: "12.4.1"
         required: false
       torch_version:
-        description: "PyTorch version"
+        description: "PyTorch / LibTorch version"
         default: "2.4.1"
         required: false
       torch_cuda_tag:
@@ -28,14 +33,6 @@ on:
       cuda_architectures:
         description: "CMAKE_CUDA_ARCHITECTURES list"
         default: "89"
-        required: false
-      install_colmap:
-        description: "Build COLMAP (needed unless you already have match .db files)"
-        default: "true"
-        required: false
-      build_cuda_kernels:
-        description: "Compile FastMap's optional custom CUDA kernels"
-        default: "true"
         required: false
       image_tag:
         description: "Tag for the built image"
@@ -55,6 +52,11 @@ jobs:
       packages: write
 
     steps:
+      # The CUDA devel base image + COLMAP + LibTorch + OpenSplat builds easily
+      # blow past the ~14GB free on a stock GitHub-hosted runner. This step
+      # removes preinstalled toolchains we don't need (Android SDK, .NET,
+      # Haskell, preinstalled Docker images, etc.) to free up room before the
+      # build starts.
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -86,20 +88,34 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./dockerfile
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}-fastmap:${{ inputs.image_tag || 'cu124' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ inputs.image_tag || 'cu124' }}
           build-args: |
             CUDA_VERSION=${{ inputs.cuda_version || '12.4.1' }}
             TORCH_VERSION=${{ inputs.torch_version || '2.4.1' }}
             TORCH_CUDA_TAG=${{ inputs.torch_cuda_tag || 'cu124' }}
             CUDA_ARCHITECTURES=${{ inputs.cuda_architectures || '89' }}
-            INSTALL_COLMAP=${{ inputs.install_colmap || 'true' }}
-            BUILD_CUDA_KERNELS=${{ inputs.build_cuda_kernels || 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
 
       - name: Image summary
         run: |
-          echo "Pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}-fastmap:${{ inputs.image_tag || 'cu124' }}" >> $GITHUB_STEP_SUMMARY
+          echo "Pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ inputs.image_tag || 'cu124' }}" >> $GITHUB_STEP_SUMMARY
+
+# ------------------------------------------------------------------------------
+# To push to Docker Hub instead of ghcr.io:
+#   1. Create a Docker Hub access token (Account Settings -> Security).
+#   2. Add repo secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+#   3. Replace the "Log in to GitHub Container Registry" step with:
+#
+#      - name: Log in to Docker Hub
+#        uses: docker/login-action@v3
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#   4. Change `tags:` above to:
+#      tags: ${{ secrets.DOCKERHUB_USERNAME }}/splat-pipeline:${{ inputs.image_tag || 'cu124' }}
+# ------------------------------------------------------------------------------
