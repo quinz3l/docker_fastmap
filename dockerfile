@@ -158,7 +158,7 @@ RUN pip install --no-cache-dir \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch || true
 
 # ------------------------------------------------------------------------------
-# NEW: Install fastmap from GitHub
+# NEW: Install fastmap from GitHub (fixed01)
 # ------------------------------------------------------------------------------
 RUN pip install --no-cache-dir --no-build-isolation git+https://github.com/pals-ttic/fastmap.git
 
