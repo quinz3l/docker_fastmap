@@ -143,10 +143,23 @@ RUN /opt/venv/bin/pip uninstall -y cmake ninja || true && \
 # ------------------------------------------------------------------------------
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS runtime
 
+ARG CUDA_VERSION
+
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH=/opt/venv/bin:/usr/local/bin:${PATH} \
-    LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64 \
+    PATH=/opt/venv/bin:/usr/local/bin:/usr/local/cuda/bin:${PATH} \
+    LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:/usr/local/cuda/lib64 \
+    CUDA_HOME=/usr/local/cuda \
     PYOPENGL_PLATFORM=osmesa
+
+# gsplat JIT-compiles some CUDA kernels on first use via torch's cpp_extension,
+# which needs a host compiler (build-essential) AND nvcc — neither is present
+# in the -runtime base image (only in -devel). Installing just the nvcc
+# component keeps the image much smaller than switching to -devel.
+RUN CUDA_PKG_VER=$(echo "${CUDA_VERSION}" | cut -d. -f1,2 | tr '.' '-') && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cuda-nvcc-${CUDA_PKG_VER} && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates python3 python3-venv python3-pip ffmpeg \
