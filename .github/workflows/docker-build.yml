@@ -1,4 +1,4 @@
-# Save this file as: .github/workflows/docker-build.yml  (in the same repo as your Dockerfile)
+# Save this file as: .github/workflows/docker-build.yml  (in the same repo as your dockerfile)
 ##
 # Builds and pushes the splat-pipeline image to GitHub Container Registry (ghcr.io)
 # by default — no extra secrets needed, it uses the repo's built-in GITHUB_TOKEN.
@@ -14,7 +14,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "Dockerfile"
+      - "dockerfile"
       - ".github/workflows/docker-build.yml"
   workflow_dispatch:
     inputs:
@@ -88,7 +88,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ./dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ inputs.image_tag || 'cu124' }}
