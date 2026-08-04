@@ -34,6 +34,10 @@ on:
         description: "CMAKE_CUDA_ARCHITECTURES list"
         default: "89"
         required: false
+      colmap_git_ref:
+        description: "COLMAP git tag/branch (pin to a release, not main, to avoid schema drift breaking FastMap)"
+        default: "3.13.0"
+        required: false
       image_tag:
         description: "Tag for the built image"
         default: "cu124"
@@ -97,6 +101,7 @@ jobs:
             TORCH_VERSION=${{ inputs.torch_version || '2.4.1' }}
             TORCH_CUDA_TAG=${{ inputs.torch_cuda_tag || 'cu124' }}
             CUDA_ARCHITECTURES=${{ inputs.cuda_architectures || '89' }}
+            COLMAP_GIT_REF=${{ inputs.colmap_git_ref || '3.13.0' }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
 
