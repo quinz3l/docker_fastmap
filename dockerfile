@@ -114,6 +114,10 @@ RUN /opt/venv/bin/pip install --no-cache-dir \
     imageio imageio-ffmpeg scikit-image lpips rich tyro \
     trimesh "pyglet<2" pyyaml dacite loguru prettytable psutil
 
+# ------------------------------------------------------------------------------
+# FastMap: set TORCH_CUDA_ARCH_LIST BEFORE building so it actually takes effect
+# ------------------------------------------------------------------------------
+ENV TORCH_CUDA_ARCH_LIST=${CUDA_ARCHITECTURES}
 
 # Optional tiny-cuda-nn
 RUN /opt/venv/bin/pip install --no-cache-dir \
@@ -129,8 +133,6 @@ RUN if [ "${BUILD_CUDA_KERNELS}" = "true" ]; then \
       /opt/venv/bin/python setup.py build_ext --inplace; \
     fi
 
-ENV TORCH_CUDA_ARCH_LIST=${CUDA_ARCHITECTURES}
-
 # Cleanup build caches to save space
 RUN /opt/venv/bin/pip uninstall -y cmake ninja || true && \
     find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
@@ -140,10 +142,6 @@ RUN /opt/venv/bin/pip uninstall -y cmake ninja || true && \
 # RUNTIME STAGE
 # ------------------------------------------------------------------------------
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS runtime
-
-ARG USERNAME=fastmap
-ARG USER_UID=1000
-ARG USER_GID=1000
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/opt/venv/bin:/usr/local/bin:${PATH} \
@@ -158,10 +156,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libosmesa6 libglu1-mesa freeglut3 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid ${USER_GID} ${USERNAME} && \
-    useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} && \
-    mkdir -p /workspace && chown ${USERNAME}:${USERNAME} /workspace
-
+# NOTE: intentionally staying root here. RunPod pods are single-tenant and
+# ephemeral, the persistent /workspace network volume is mounted at runtime
+# (its ownership can't be fixed at build time), and RunPod's Web Terminal
+# execs in as whatever USER is set. Root avoids permission-denied surprises
+# on the mounted volume and lets you install/apt from the web terminal.
 WORKDIR /workspace
 
 COPY --from=builder /usr/local/bin /usr/local/bin
@@ -169,27 +168,22 @@ COPY --from=builder /usr/local/lib /usr/local/lib
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /opt/fastmap /opt/fastmap
 
-RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig || true && \
-    chown -R root:root /usr/local/bin /usr/local/lib /opt/fastmap && \
-    chmod -R a+rX /usr/local/lib /opt/fastmap
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig || true
 
 # ------------------------------------------------------------------------------
-# NEW: Create a startup script for JupyterLab (RunPod friendly)
+# Startup script for JupyterLab (RunPod friendly)
 # ------------------------------------------------------------------------------
-RUN echo '#!/bin/bash\n\
-if [ -z "$JUPYTER_TOKEN" ]; then\n\
-    JUPYTER_TOKEN=$(python -c "import secrets; print(secrets.token_hex(32))")\n\
-    echo "Generated JUPYTER_TOKEN: $JUPYTER_TOKEN"\n\
-fi\n\
-exec jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token="$JUPYTER_TOKEN"\n\
-' > /usr/local/bin/start-jupyter.sh && \
-    chmod +x /usr/local/bin/start-jupyter.sh && \
-    chown root:root /usr/local/bin/start-jupyter.sh
+RUN cat <<'EOF' > /usr/local/bin/start-jupyter.sh
+#!/bin/bash
+if [ -z "$JUPYTER_TOKEN" ]; then
+    JUPYTER_TOKEN=$(python -c "import secrets; print(secrets.token_hex(32))")
+    echo "Generated JUPYTER_TOKEN: $JUPYTER_TOKEN"
+fi
+exec jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token="$JUPYTER_TOKEN"
+EOF
+RUN chmod +x /usr/local/bin/start-jupyter.sh
 
-
-
-USER ${USERNAME}
-ENV HOME=/home/${USERNAME}
+EXPOSE 8888
 
 # Sanity checks
 RUN python -c "import torch; print('Torch:', torch.__version__)" || true
@@ -198,6 +192,8 @@ RUN python -c "import nerfstudio; print('nerfstudio OK')" || true
 RUN python3 -c "import sys; sys.path.insert(0, '/opt/fastmap'); import fastmap; print('fastmap OK')" || true
 
 # ------------------------------------------------------------------------------
-# NEW: Default command – start JupyterLab. 
+# Default command – start JupyterLab.
+# RunPod's Web Terminal execs into this same running container independently,
+# so no separate sshd/entrypoint is needed for terminal access.
 # ------------------------------------------------------------------------------
 CMD ["/usr/local/bin/start-jupyter.sh"]
