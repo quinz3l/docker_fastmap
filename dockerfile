@@ -8,7 +8,7 @@ ARG CUDA_ARCHITECTURES="89"
 ARG TORCH_VERSION=2.4.1
 ARG TORCH_CUDA_TAG=cu124
 ARG OIIO_VERSION=v2.5.9.0
-ARG COLMAP_GIT_REF=main
+ARG COLMAP_GIT_REF=3.13.0
 ARG FASTMAP_GIT_REF=main
 ARG PYRENDER_GIT_REF=main
 ARG INSTALL_COLMAP=true
@@ -153,7 +153,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-turbo8 libpng16-16 libtiff5 libwebp-dev libopenexr-dev libraw-dev \
     libssl3 zlib1g libsqlite3-0 libgomp1 libstdc++6 \
     libsm6 libice6 libxext6 libxrender1 libgl1 \
-    libosmesa6 libglu1-mesa freeglut3 && \
+    libosmesa6 libglu1-mesa freeglut3 libglew2.2 \
+    # --- COLMAP link-time deps: these were only installed as -dev packages
+    # in the builder stage, which also drops the runtime .so. Re-add here. ---
+    libboost-program-options1.74.0 libboost-graph1.74.0 libboost-system1.74.0 \
+    libboost-filesystem1.74.0 libboost-thread1.74.0 \
+    libgoogle-glog0v5 libgflags2.2 \
+    libmetis5 libflann1.9 libfreeimage3 \
+    libcurl4 \
+    qtbase5-dev libqt5opengl5-dev libqt5svg5-dev \
+    libcgal-dev libceres-dev libsuitesparse-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # NOTE: intentionally staying root here. RunPod pods are single-tenant and
