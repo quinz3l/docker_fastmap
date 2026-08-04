@@ -1,7 +1,7 @@
 # ==============================================================================
 # Combined Dockerfile: Minimal CUDA + PyTorch + gsplat + nerfstudio + FastMap
 # ==============================================================================
-
+#
 ARG UBUNTU_VERSION=22.04
 ARG CUDA_VERSION=12.4.1
 ARG CUDA_ARCHITECTURES="89"
